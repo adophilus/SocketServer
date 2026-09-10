@@ -3,23 +3,18 @@ from General import General
 from Clock import Clock
 
 class SocketServer (General):
-	def __init__ (self, host = "localhost", port = 8080, _buffer = 1024, maxConnections = 10, displayMsg = False, allowMultipleConnections = True):
+	def __init__(self, host = "localhost", port = 8080, _buffer = 1024, maxConnections = 10, displayMsg = False, allowMultipleConnections = True):
 		self.host = host;
 		self.port = port;
 		self._buffer = _buffer;
 		self.maxConnections = maxConnections;
-		self.waiting = False; # This variable shows whether the server is waiting for new connections
-		self.shouldWait = True; # This variable determines whether the server should accept new incoming connections or not
+		self.waiting = False
+		self.shouldWait = True
 		self.closing = False;
 		self.closed = False;
-		self.connections = []; # This list contains all successful connections to the server
-		self.allowMultipleConnections = allowMultipleConnections; # The value of this variable determines whether multiple connections from the same IP address will be allowed
-
-		if not displayMsg:
-			self.displayMessageCallback = self.displayMsg;
-		else:
-			self.displayMessageCallback = displayMsg;
-
+		self.connections = []
+		self.allowMultipleConnections = allowMultipleConnections
+		self.displayMessageCallback = displayMsg or self.displayMsg
 		# Callback definitions
 		self.onStartCallback = self.emptyFunction;
 		self.onConnectCallback = self.emptyFunction;
@@ -55,18 +50,17 @@ class SocketServer (General):
 		self.setInterval(method, 1, {"self": self, "_async": _async});
 
 
-	def waitForConnection (self, _async = False):
-		if self.shouldWait:
-			if not self.waiting:
-				self.waiting = True;
+	def waitForConnection(self, _async = False):
+		if self.shouldWait and not self.waiting:
+			self.waiting = True;
 
-				if _async:
-					self.setImmediate(self.onBeforeConnectCallback);
-				else:
-					self.onBeforeConnectCallback();				
+			if _async:
+				self.setImmediate(self.onBeforeConnectCallback);
+			else:
+				self.onBeforeConnectCallback();				
 
 
-	def onBeforeConnectCallback (self):
+	def onBeforeConnectCallback(self):
 		try:
 			(conn, addr) = self.server.accept();
 
@@ -75,9 +69,7 @@ class SocketServer (General):
 
 			if not self.allowMultipleConnections:
 				for client in self.connections:
-					if client["ip"] == addr[0]:
-						pass; # <- Code to disconnect the client goes here
-
+					pass
 			client = {
 				"index": len(self.connections),
 				"conn": conn,
@@ -139,11 +131,11 @@ class SocketServer (General):
 					self.receive(client);
 
 
-	def onBeforeReceiveCallback (self, **kwargs):
+	def onBeforeReceiveCallback(self, **kwargs):
 		try:
-			data = kwargs["client"]["conn"].recv(self._buffer); # Receieves data from client
-			data = data.decode("utf-8"); # Decodes the received data
-			if not data == "":
+			data = kwargs["client"]["conn"].recv(self._buffer)
+			data = data.decode("utf-8")
+			if data != "":
 				data = self.jsonize(data); # Convert the data (in string format) to dict
 
 				self.onReceiveCallback(data, kwargs["client"], None); # Trigger callback
@@ -187,16 +179,16 @@ class SocketServer (General):
 		self.setClientData(kwargs["client"], {"isReceiving": False});
 
 
-	def isClient (self, client):
-		if not (client["index"] < len(self.connections)):
+	def isClient(self, client):
+		if client["index"] >= len(self.connections):
 			return False;
 
-		if not (client["ip"] == self.connections[client["index"]]["ip"]):
+		if client["ip"] != self.connections[client["index"]]["ip"]:
 			return False;
 
-		if not self.allowMultipleConnections:
-			if not (client["port"] == self.connections[client["index"]]["port"]):
-				return False
+		if (not self.allowMultipleConnections
+		    and client["port"] != self.connections[client["index"]]["port"]):
+			return False
 
 		if not (self.connections[client["index"]]["isConnected"]) or self.connections[client["index"]]["isBlocked"]:
 			return False
@@ -296,12 +288,12 @@ class SocketServer (General):
 if __name__ == "__main__":
 	server = SocketServer();
 
-	def onConnect (client, err):
+	def onConnect(client, err):
 		if err:
 			print("An error occurred while a client was trying to connect");
 			print(err);
 		else:
-			print("Received a new connection from %s" % client["ip"]);
+			print(f'Received a new connection from {client["ip"]}');
 			server.send(client, "Welcome!");
 			server.startReceivingFrom(client);
 
@@ -309,12 +301,12 @@ if __name__ == "__main__":
 		if started:
 			print("The server has started running!");
 
-	def onRecv (data, client, err):
+	def onRecv(data, client, err):
 		if err:
-			print("An error occurred while receiving data from %s" % client["ip"]);
+			print(f'An error occurred while receiving data from {client["ip"]}');
 			print(err);
 		else:
-			print("Data has been received from %s" % client["ip"]);
+			print(f'Data has been received from {client["ip"]}');
 			print(data);
 
 	server.onStart(onStart);
